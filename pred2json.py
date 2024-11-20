@@ -8,9 +8,9 @@ Violence: 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
 NonViolence: 
 '''
 
-for i in range(600, 601):
+for i in range(1, 101):
     ini = datetime.now()
-    violence = False
+    violence = True
     num = i
     video_name = f'{"V" if violence else "NV"}_{num}.mp4'
     cap = cv.VideoCapture(f'train_videos/{"" if violence else "Non"}Violence/{video_name}')
@@ -30,7 +30,7 @@ for i in range(600, 601):
             if cv.waitKey(25) & 0xFF == ord('q'):
                 break
         else:
-            with open(f'train_videos/{"" if violence else "Non"}Violence/{video_name}', 'wt') as new_file:    
+            with open(f'poses/{"" if violence else "Non"}Violence/poses_{num}.json', 'wt') as new_file:    
                 json.dump(dataset, new_file)
             break
     print(f'{num}) {(datetime.now()-ini).seconds} segundos ==> {len(dataset)}')

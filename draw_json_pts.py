@@ -28,9 +28,9 @@ IMG_WIDTH = 512
 
 # Data collection
 violence = False
-num = 520    # 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
-file_name = f'{"V" if violence else "NV"}_{num}.mp4'
-with open(f'train_videos/{"" if violence else "Non"}Violence/{file_name}', 'rt') as file:
+num = 23    # 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
+file_name = f'poses_{num}.json'
+with open(f'poses/{"" if violence else "Non"}Violence/{file_name}', 'r') as file:
     data = json.load(file)
 
 # Data representation
