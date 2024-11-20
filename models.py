@@ -121,9 +121,12 @@ class YOLO_pose(Model):
 
 
 class MoveNet(Model):
-    def __init__(self, name):
+    def __init__(self, name, img_width=640, img_height=480, confidence=0.2):
         super().__init__(name)
         self.architecture = self.load_model()
+        self.img_width = img_width
+        self.img_height = img_height
+        self.confidence = confidence
         self.labels = (
             "nose",
             "left eye",
@@ -158,17 +161,20 @@ class MoveNet(Model):
         X = tf.cast(tf.image.resize_with_pad(X, 256, 256), dtype=tf.int32)
         return X
 
-    def predict(self, frame, threshold=0.2):
+    def predict(self, frame):
         prediction = self.architecture(frame)
         prediction = prediction["output_0"].numpy()
-        people_detected = np.where(prediction[0, :, 55] > threshold)
+        people_detected = np.where(prediction[0, :, 55] > self.confidence)
         keypoints_dict = dict()
         for key in people_detected[0]:
             points = (prediction[0, key, :] * 256).astype(float)
             keypoints = dict()
             for i in range(0, len(points) - 5, 3):
                 keypoints[self.labels[i // 3]] = [p for p in points[i : i + 3]]
-            keypoints_dict[key] = keypoints
+                keypoints[self.labels[i // 3]][2] = (
+                    keypoints[self.labels[i // 3]][2] * 100 / 256
+                )
+            keypoints_dict[int(key)] = keypoints
         return keypoints_dict
 
     def postprocess(self, frame, preds):
@@ -198,22 +204,30 @@ class MoveNet(Model):
         ]
         for key in keypoints_dict.keys():
             keypoints = keypoints_dict[key]
+            body_parts = list()
             for body_part in keypoints.keys():
                 point = keypoints[body_part]
-                cv.circle(
-                    frame,
-                    (int(point[1] / 256 * 640), int(point[0] / 256 * 480)),
-                    5,
-                    (0, 0, 255),
-                    1,
-                )
-            for connection in CONNECTIONS:
+                if point[2] > 20:
+                    body_parts.append(body_part)
+                    cv.circle(
+                        frame,
+                        (int(point[1] / 256 * self.img_width), int(point[0] / 256 * self.img_height)),
+                        5,
+                        (0, 0, 255),
+                        1,
+                    )
+            my_connections = [
+                con
+                for con in CONNECTIONS
+                if con[0] in body_parts and con[1] in body_parts
+            ]
+            for connection in my_connections:
                 pt1 = keypoints[connection[0]]
                 pt2 = keypoints[connection[1]]
                 cv.line(
                     frame,
-                    (int(pt1[1] / 256 * 640), int(pt1[0] / 256 * 480)),
-                    (int(pt2[1] / 256 * 640), int(pt2[0] / 256 * 480)),
+                    (int(pt1[1] / 256 * self.img_width), int(pt1[0] / 256 * self.img_height)),
+                    (int(pt2[1] / 256 * self.img_width), int(pt2[0] / 256 * self.img_height)),
                     (0, 255, 0),
                     2,
                 )

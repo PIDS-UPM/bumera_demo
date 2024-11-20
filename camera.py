@@ -56,7 +56,7 @@ class Camera:
         cv.destroyAllWindows()
 
     def save_video(
-        self, filename=datetime.strftime(datetime.now(), "%y_%m_%d__%H_%M_%S"), fs=20.0
+        self, filename=datetime.strftime(datetime.now(), "%y_%m_%d__%H_%M_%S"), fs=30.0
     ):
         if self.filming:
             fourcc = cv.VideoWriter_fourcc(*"mp4v")
