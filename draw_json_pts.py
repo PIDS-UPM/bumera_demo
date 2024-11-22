@@ -3,7 +3,25 @@ import cv2 as cv
 import numpy as np
 
 # Constants
-LABELS = ("nose", "left eye", "right eye", "left ear", "right ear", "left shoulder", "right shoulder", "left elbow", "right elbow", "left wrist", "right wrist", "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle",)
+LABELS = (
+    "nose",
+    "left eye",
+    "right eye",
+    "left ear",
+    "right ear",
+    "left shoulder",
+    "right shoulder",
+    "left elbow",
+    "right elbow",
+    "left wrist",
+    "right wrist",
+    "left hip",
+    "right hip",
+    "left knee",
+    "right knee",
+    "left ankle",
+    "right ankle",
+)
 CONNECTIONS = [
     ("nose", "left eye"),
     ("left eye", "left ear"),
@@ -21,16 +39,16 @@ CONNECTIONS = [
     ("left hip", "left knee"),
     ("right hip", "right knee"),
     ("left knee", "left ankle"),
-    ("right knee", "right ankle")
-    ]
+    ("right knee", "right ankle"),
+]
 IMG_HEIGHT = 512
 IMG_WIDTH = 512
 
 # Data collection
 violence = False
-num = 23    # 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
-file_name = f'poses_{num}.json'
-with open(f'poses/{"" if violence else "Non"}Violence/{file_name}', 'r') as file:
+num = 145  # 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
+file_name = f"poses_{num}.json"
+with open(f'poses/{"" if violence else "Non"}Violence/{file_name}', "r") as file:
     data = json.load(file)
 
 # Data representation
@@ -44,7 +62,13 @@ for frame in data:
         for connection in CONNECTIONS:
             pt1 = keypoints[connection[0]]
             pt2 = keypoints[connection[1]]
-            cv.line(img, (int(pt1[1]), int(pt1[0])), (int(pt2[1]), int(pt2[0])), (0, 255, 0), 5)
-    cv.imshow('Imagen negra', img)
+            cv.line(
+                img,
+                (int(pt1[1]), int(pt1[0])),
+                (int(pt2[1]), int(pt2[0])),
+                (0, 255, 0),
+                3,
+            )
+    cv.imshow("Imagen negra", img)
     cv.waitKey(100)
 cv.destroyAllWindows()
