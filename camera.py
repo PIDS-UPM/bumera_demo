@@ -1,18 +1,14 @@
+import socket
 import cv2 as cv
 from datetime import datetime
-from models import Model
-
 
 class Camera:
-    def __init__(
-        self, id: int, frame_width: int, frame_height: int, use: str, model: Model
-    ):
+    def __init__(self, id: int, frame_width: int, frame_height: int, use: str):
         self.__id = id  # ID's camera
         self.use = use  # Actual use of the camera
         self.frame_width = frame_width  # Width of the video
         self.frame_height = frame_height  # Height of the video
-        self.model = model
-        self.filming = False
+        self.filming = False  # Flag for film
         self.__cam = cv.VideoCapture(self.__id)
 
     def get_id(self):
@@ -41,13 +37,21 @@ class Camera:
         self.__cam = cv.VideoCapture(self.get_id())
 
     def __capture_frames(self):
+        hostname = socket.gethostname()
+        ip_to_send = socket.gethostbyname(hostname)
+        port_to_send = 5001
+        sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         while self.filming:
             ret, frame = self.__cam.read()
             if ret:
-                # TOCAR AQUÍ frame PARA PROCESAR/ANALIZAR EL VÍDEO
-                transformed_frame = self.model(frame)
+                try:
+                    _, frame_encoded = cv.imencode(".jpg", frame)
+                    sock.sendto(frame_encoded.tobytes(), (ip_to_send, port_to_send))
+                except OSError as error:
+                    size_semt_msg = len(frame_encoded.tobytes())
+                    print("OsError:", error, "==>", size_semt_msg, "Bytes")
                 self.check_fps()
-                cv.imshow("Video", transformed_frame)
+                cv.imshow("Video sent", frame)
                 if cv.waitKey(1) & 0xFF == ord("q"):
                     self.stop_filming()
             else:
