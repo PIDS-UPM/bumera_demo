@@ -7,20 +7,13 @@ from ultralytics import (
 from abc import ABC, abstractmethod
 import numpy as np
 import cv2 as cv
-
-# Creo que es MoveNet https://www.kaggle.com/models/google/movenet/tfLite/singlepose-lightning-tflite-float16/1?tfhub-redirect=true
-# Repo con Multi-MoveNet: https://github.com/ihalhashem/Multi-Person-Pose-Estimation
+from PIL import Image, ImageDraw
 
 
 class Model(ABC):
     def __init__(self, name):
         self.name = name
         self.architecture = None
-        self.hyperparameters = None
-
-    @abstractmethod
-    def show_architecture(self):
-        pass
 
     @abstractmethod
     def load_model(self):
@@ -64,9 +57,6 @@ class MTCNN_Face(Model):
             )
         )  # The other option for stages is 'face_and_landmarks_detection'
 
-    def show_architecture(self):
-        pass
-
     def preprocess(self, frame):
         return super().preprocess(frame)
 
@@ -104,9 +94,6 @@ class YOLO_pose(Model):
     def load_model(self, path):
         return YOLO(path)
 
-    def show_architecture(self):
-        print(self.architecture.model)
-
     def preprocess(self, frame):
         return super().preprocess(frame)
 
@@ -121,12 +108,20 @@ class YOLO_pose(Model):
 
 
 class MoveNet(Model):
-    def __init__(self, name, img_width=640, img_height=480, confidence=0.2):
+    def __init__(
+        self,
+        name,
+        img_width=640,
+        img_height=480,
+        pred_confidence=0.2,
+        pt_confidence=0.2,
+    ):
         super().__init__(name)
         self.architecture = self.load_model()
         self.img_width = img_width
         self.img_height = img_height
-        self.confidence = confidence
+        self.pred_confidence = pred_confidence
+        self.pt_confidence = pt_confidence
         self.labels = (
             "nose",
             "left eye",
@@ -152,9 +147,6 @@ class MoveNet(Model):
             "https://tfhub.dev/google/movenet/multipose/lightning/1"
         ).signatures["serving_default"]
 
-    def show_architecture(self):
-        return super().show_architecture()
-
     def preprocess(self, frame):
         X = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         X = tf.expand_dims(frame, axis=0)
@@ -164,7 +156,7 @@ class MoveNet(Model):
     def predict(self, frame):
         prediction = self.architecture(frame)
         prediction = prediction["output_0"].numpy()
-        people_detected = np.where(prediction[0, :, 55] > self.confidence)
+        people_detected = np.where(prediction[0, :, 55] >= self.pred_confidence)
         keypoints_dict = dict()
         for key in people_detected[0]:
             points = (prediction[0, key, :] * 256).astype(float)
@@ -177,10 +169,13 @@ class MoveNet(Model):
             keypoints_dict[int(key)] = keypoints
         return keypoints_dict
 
-    def postprocess(self, frame, preds):
-        # Aquí aún hay que detectar el bullying <--
-        new_frame = self.draw_points(frame, preds)
-        return new_frame
+    def postprocess(self, frame, preds, to_cnn=True):
+        img = Image.fromarray(
+            np.zeros((224, 224, 3) if to_cnn else frame, dtype=np.uint8)
+        )
+        draw = ImageDraw.Draw(img)
+        new_frame = self.draw_points(draw, preds)
+        return np.reshape(np.asarray(new_frame.im, dtype=np.uint8), (224, 224, 3))
 
     def draw_points(self, frame, keypoints_dict):
         CONNECTIONS = [
@@ -207,14 +202,17 @@ class MoveNet(Model):
             body_parts = list()
             for body_part in keypoints.keys():
                 point = keypoints[body_part]
-                if point[2] > 20:
+                if point[2] >= self.pt_confidence:
                     body_parts.append(body_part)
-                    cv.circle(
-                        frame,
-                        (int(point[1] / 256 * self.img_width), int(point[0] / 256 * self.img_height)),
-                        5,
-                        (0, 0, 255),
-                        1,
+                    frame.ellipse(
+                        (
+                            int(point[1]) - 3,
+                            int(point[0]) - 3,
+                            int(point[1]) + 3,
+                            int(point[0]) + 3,
+                        ),
+                        outline="red",
+                        width=1,
                     )
             my_connections = [
                 con
@@ -224,21 +222,49 @@ class MoveNet(Model):
             for connection in my_connections:
                 pt1 = keypoints[connection[0]]
                 pt2 = keypoints[connection[1]]
-                cv.line(
-                    frame,
-                    (int(pt1[1] / 256 * self.img_width), int(pt1[0] / 256 * self.img_height)),
-                    (int(pt2[1] / 256 * self.img_width), int(pt2[0] / 256 * self.img_height)),
-                    (0, 255, 0),
-                    2,
+                frame.line(
+                    (int(pt1[1]), int(pt1[0]), int(pt2[1]), int(pt2[0])),
+                    fill=[
+                        "orange",
+                        "yellow",
+                        "lime",
+                        "aqua",
+                        "blue",
+                        "magenta",
+                    ][int(int(key) % 6)],
+                    width=3,
                 )
         return frame
 
-    # def __call__(self, frame):
-    #     if not self.architecture:
-    #         print(
-    #             "The class hasn't got an architecture defined! You must define one first."
-    #         )
-    #     processed_frame = self.preprocess(frame)
-    #     predictions = self.predict(processed_frame)
-    #     drawn_frame = self.postprocess(frame, predictions)
-    #     return drawn_frame
+
+class CNN_bullying(Model):
+    def __init__(self, name):
+        super().__init__(name)
+        self.architecture = self.load_model()
+
+    def load_model(self):
+        return tf.saved_model.load(f"models/{self.name.lower()}").signatures["serving_default"]
+
+    def preprocess(self, frame):
+        match self.name:
+            case "vgg16":
+                from tensorflow.keras.applications.vgg16 import preprocess_input
+            case "vgg19":
+                from tensorflow.keras.applications.vgg19 import preprocess_input
+            case "efficientnet_v2":
+                from tensorflow.keras.applications.efficientnet_v2 import (
+                    preprocess_input,
+                )
+            case "inception_resnet_v2":
+                from tensorflow.keras.applications.inception_resnet_v2 import (
+                    preprocess_input,
+                )
+            case "convnext":
+                from tensorflow.keras.applications.convnext import preprocess_input
+        return preprocess_input(frame)
+
+    def predict(self, frame):
+        return self.architecture(tf.expand_dims(frame, axis=0))
+
+    def postprocess(self, frame, preds):
+        return super().postprocess(frame, preds)
