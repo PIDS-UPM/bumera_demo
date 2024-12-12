@@ -1,4 +1,5 @@
 from mtcnn import MTCNN  # https://mtcnn.readthedocs.io/en/latest/
+from fer import FER
 import tensorflow as tf
 import tensorflow_hub as hub  # https://docs.opencv.org/3.4/d8/dfe/classcv_1_1VideoCapture.html
 from ultralytics import (
@@ -32,10 +33,6 @@ class Model(ABC):
         return frame
 
     def __call__(self, frame):
-        if not self.architecture:
-            print(
-                "The class hasn't got an architecture defined! You must define one first."
-            )
         processed_frame = self.preprocess(frame)
         predictions = self.predict(processed_frame)
         final_predictions = self.postprocess(frame, predictions)
@@ -61,7 +58,8 @@ class MTCNN_Face(Model):
         return super().preprocess(frame)
 
     def predict(self, frame):
-        return self.architecture.detect_faces(frame, box_format="xyxy")
+        prediction = self.architecture.detect_faces(frame, box_format="xyxy")
+        return prediction
 
     def postprocess(self, frame, preds):
         if len(preds) > 0:
@@ -83,7 +81,80 @@ class MTCNN_Face(Model):
         return frame
 
 
-class Mood_from_face(Model): ...
+class Emotion_detection(Model):
+    def __init__(self, name, show_roi=True):
+        self.name = name
+        self.face_detector = MTCNN_Face("mtcnn")
+        self.emotion_detector = FER(mtcnn=False)
+        self.show_roi = show_roi
+        self.box_expansion = 0.2
+        self.colors = {
+            "angry": (0, 0, 255),
+            "disgust": (0, 140, 255),
+            "fear": (0, 255, 255),
+            "happy": (0, 255, 0),
+            "sad": (255, 0, 0),
+            "surprise": (255, 0, 255),
+            "neutral": (255, 255, 255),
+        }  # BGR colors for each emotion
+
+    def _expand_roi(self, frame, face):
+        """Extract and expand face region of interest for the FER model"""
+        x1, y1, x2, y2 = face["box"]
+        frame_h, frame_w = frame.shape[:2]
+        dx = abs(x1 - x2)
+        dy = abs(y1 - y2)
+        x1 = max(0, int(x1 - self.box_expansion * x1))
+        y1 = max(0, int(y1 - self.box_expansion * y1))
+        x2 = min(int(x2 + self.box_expansion * x2), frame_w)
+        y2 = min(int(y2 + self.box_expansion * y2), frame_h)
+        return [x1, y1, x2, y2]
+
+    def _pick_face(self, frame, box):
+        x1, y1, x2, y2 = box
+        return frame[y1:y2, x1:x2]
+
+    def _draw_info(self, frame, box, index, feeling):
+        frame = cv.rectangle(
+            img=frame,
+            pt1=(box[0], box[1]),
+            pt2=(box[2], box[3]),
+            color=self.colors[feeling],
+        )
+        frame = cv.putText(
+            img=frame,
+            text=f"Face {index}: {feeling}",
+            org=(box[0], box[1]),
+            fontFace=0,
+            fontScale=0.5,
+            color=self.colors[feeling],
+        )
+        return frame
+
+    def load_model(self):
+        return super().load_model()
+
+    def preprocess(self, frame):
+        return self.face_detector.preprocess(frame)
+
+    def predict(self, frame):
+        faces = self.face_detector.predict(frame)
+        return faces
+
+    def postprocess(self, frame, preds):
+        if len(preds) < 0:
+            return frame
+        for i, pred in enumerate(preds):
+            roi = self._expand_roi(frame, pred)
+            face = self._pick_face(frame, roi)
+            feelings = self.emotion_detector.detect_emotions(face, [roi])
+            top_feeling = [
+                max(x["emotions"], key=lambda key: x["emotions"][key]) for x in feelings
+            ]
+            if len(top_feeling):
+                frame = self._draw_info(frame, roi, i, top_feeling[0])
+
+        return frame
 
 
 class YOLO_pose(Model):
@@ -243,7 +314,9 @@ class CNN_bullying(Model):
         self.architecture = self.load_model()
 
     def load_model(self):
-        return tf.saved_model.load(f"models/{self.name.lower()}").signatures["serving_default"]
+        return tf.saved_model.load(f"models/{self.name.lower()}").signatures[
+            "serving_default"
+        ]
 
     def preprocess(self, frame):
         match self.name:
