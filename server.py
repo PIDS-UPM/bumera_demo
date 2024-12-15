@@ -1,26 +1,27 @@
 import cv2 as cv
 import socket
 import numpy as np
-import datetime as dt
 from models import MoveNet, CNN_bullying, Emotion_detection
 from alarms import AlarmGenerator
-from tensorflow import greater
 
 
-def bullying_pipeline(frame, pose_model, prediction_model):
+def bullying_pipeline(frame, pose_model, prediction_model, counter):
     cv.imshow("Received frames", frame)
     pred = pose_model(frame)
     cv.imshow("Prediction", pred)
-    res = prediction_model.predict(prediction_model.preprocess(pred))["dense_1"]
-    if greater(res, 0.5):
-        counter += 1
-        if counter >= 5:
+    res = prediction_model.predict(prediction_model.preprocess(pred))
+    res = next(iter(res.values()))
+    res = res.numpy()[0, 0]
+    if res > 0.5:
+        counter[0] += 1
+        if counter[0] >= 20:
+            print("BULLYING !!!")
             alert_gen.send_notifications(
                 title="BULLYING WARNING", body="Possible bullying in the hallway"
             )
     else:
-        counter = 0
-    print(res)
+        counter[0] = 0
+    print(res, counter)
 
 
 def mood_pipeline(frame, full_model):
@@ -53,9 +54,9 @@ def main():
     print(
         f"Listening at {hostname}:{PORT_REC}. Waiting for frames... Press 'q' to exit."
     )
+    if DETECT_BULLYING:
+        counter = [0]
     while True:
-        if DETECT_BULLYING:
-            counter = 0
         data, _ = sock.recvfrom(BUFFER_SIZE)  # Receive UDP message
         frame = cv.imdecode(
             np.frombuffer(data, dtype=np.uint8), cv.IMREAD_COLOR
@@ -64,7 +65,7 @@ def main():
         # Show the frame
         if frame is not None:
             (
-                bullying_pipeline(frame, movenet, cnn)
+                bullying_pipeline(frame, movenet, cnn, counter)
                 if DETECT_BULLYING
                 else mood_pipeline(frame, emotion_detection)
             )
@@ -79,5 +80,5 @@ def main():
 
 if __name__ == "__main__":
     # Choosing the objective of the code => True means bullying is going to be detected and False means mood is going to be detected
-    DETECT_BULLYING = False
+    DETECT_BULLYING = True
     main()
