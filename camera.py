@@ -2,6 +2,7 @@ import socket
 import cv2 as cv
 from datetime import datetime
 
+
 class Camera:
     def __init__(self, id: int, frame_width: int, frame_height: int, use: str):
         self.__id = id  # ID's camera
@@ -45,14 +46,17 @@ class Camera:
             ret, frame = self.__cam.read()
             if ret:
                 try:
-                    _, frame_encoded = cv.imencode(".jpg", frame)
+                    height, width, _ = frame.shape
+                    new_dim = (int(width * 0.5), int(height * 0.5))
+                    _, frame_encoded = cv.imencode(
+                        ".jpg", cv.resize(frame, new_dim, interpolation=cv.INTER_AREA)
+                    )
                     sock.sendto(frame_encoded.tobytes(), (ip_to_send, port_to_send))
                 except OSError as error:
                     size_semt_msg = len(frame_encoded.tobytes())
                     print("OsError:", error, "==>", size_semt_msg, "Bytes")
-                self.check_fps()
                 cv.imshow("Video sent", frame)
-                if cv.waitKey(1) & 0xFF == ord("q"):
+                if cv.waitKey(40) & 0xFF == ord("q"):
                     self.stop_filming()
             else:
                 print("Can't receive frame (stream end?). Exiting ...")
