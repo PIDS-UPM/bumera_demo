@@ -1,4 +1,4 @@
-from camera import Camera
+from modules.camera import Camera
 
 # from models import MoveNet, MTCNN_Face
 

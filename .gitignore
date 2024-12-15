@@ -1,9 +1,6 @@
-/.venv
-/leer.txt
+/.env
 /__pycache__
-videos/
 train_videos/
-poses/NonViolence/*
-poses/Violence/*
-poses/Validation/*
+poses/*
 models/
+key.json

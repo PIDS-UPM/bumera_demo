@@ -1,27 +1,26 @@
 import cv2 as cv
 import socket
 import numpy as np
-from models import MoveNet, CNN_bullying, Emotion_detection
-from alarms import AlarmGenerator
+import datetime as dt
+from modules.models import MoveNet, CNN_Bullying, Emotion_Detection
+from modules.alarms import AlarmGenerator
+from tensorflow import greater
 
 
-def bullying_pipeline(frame, pose_model, prediction_model, counter):
+def bullying_pipeline(frame, pose_model, prediction_model):
     cv.imshow("Received frames", frame)
     pred = pose_model(frame)
     cv.imshow("Prediction", pred)
-    res = prediction_model.predict(prediction_model.preprocess(pred))
-    res = next(iter(res.values()))
-    res = res.numpy()[0, 0]
-    if res > 0.5:
-        counter[0] += 1
-        if counter[0] >= 20:
-            print("BULLYING !!!")
+    res = prediction_model.predict(prediction_model.preprocess(pred))["dense_1"]
+    if greater(res, 0.5):
+        counter += 1
+        if counter >= 5:
             alert_gen.send_notifications(
                 title="BULLYING WARNING", body="Possible bullying in the hallway"
             )
     else:
-        counter[0] = 0
-    print(res, counter)
+        counter = 0
+    print(res)
 
 
 def mood_pipeline(frame, full_model):
@@ -46,17 +45,17 @@ alert_gen.fetch_tokens("teachers", "fcmToken")
 
 # Definition of the models to use
 movenet = MoveNet("movenet", 224, 224)
-cnn = CNN_bullying("vgg19")
-emotion_detection = Emotion_detection("emotions")
+cnn = CNN_Bullying("vgg19")
+emotion_Detection = Emotion_Detection("emotions")
 
 
 def main():
     print(
         f"Listening at {hostname}:{PORT_REC}. Waiting for frames... Press 'q' to exit."
     )
-    if DETECT_BULLYING:
-        counter = [0]
     while True:
+        if DETECT_BULLYING:
+            counter = 0
         data, _ = sock.recvfrom(BUFFER_SIZE)  # Receive UDP message
         frame = cv.imdecode(
             np.frombuffer(data, dtype=np.uint8), cv.IMREAD_COLOR
@@ -65,9 +64,9 @@ def main():
         # Show the frame
         if frame is not None:
             (
-                bullying_pipeline(frame, movenet, cnn, counter)
+                bullying_pipeline(frame, movenet, cnn)
                 if DETECT_BULLYING
-                else mood_pipeline(frame, emotion_detection)
+                else mood_pipeline(frame, emotion_Detection)
             )
 
         # Exit with 'q' key
@@ -80,5 +79,5 @@ def main():
 
 if __name__ == "__main__":
     # Choosing the objective of the code => True means bullying is going to be detected and False means mood is going to be detected
-    DETECT_BULLYING = True
+    DETECT_BULLYING = False
     main()
