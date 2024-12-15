@@ -13,33 +13,35 @@ for i in range(101, 1001):
     violence = True
     num = i
     video_name = f'{"V" if violence else "NV"}_{num}.mp4'
-    cap = cv.VideoCapture(
-        f'train_videos/{"" if violence else "Non"}Violence/{video_name}'
-    )
+    filepath = f'train_videos/{"" if violence else "Non"}Violence/{video_name}'
+    cap = cv.VideoCapture(filepath)
     # out = cv.VideoWriter("videos/output.mp4", cv.VideoWriter_fourcc(*"mp4v"), 20.0, (int(cap.get(cv.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))))
 
     model = MoveNet(
         "MoveNet",
         int(cap.get(cv.CAP_PROP_FRAME_WIDTH)),
         int(cap.get(cv.CAP_PROP_FRAME_HEIGHT)),
-        0,
+        0.2,
     )
-
+    num_frame = 0
     dataset = list()
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
-            # trans_frame = model(frame) # VA MAL POR EL TAMAÑO DEL INPUT, QUE DENTRO HACE MAL LA TRANSFORMACIÓN
-            # cv.imshow('video', trans_frame)
-            nf = int(cap.get(cv.CAP_PROP_POS_FRAMES))
+            cv.imshow("Video", frame)
+            trans_frame = model(frame)
+            cv.imshow("Prediction", trans_frame)
+            # nf = int(cap.get(cv.CAP_PROP_POS_FRAMES))
             preds = model.predict(model.preprocess(frame))
-            dataset.append(preds)
+            if len(preds):
+                dataset.append(preds)
+                num_frame += 1
+                print(num_frame)
             if cv.waitKey(25) & 0xFF == ord("q"):
                 break
         else:
-            with open(
-                f'poses/{"" if violence else "Non"}Violence/poses_{num}.json', "wt"
-            ) as new_file:
+            file_to_save = f'poses/{"" if violence else "Non"}Violence/poses_{num}.json'
+            with open(file_to_save, "wt") as new_file:
                 json.dump(dataset, new_file)
             break
     print(f"{num}) {(datetime.now()-ini).seconds} segundos ==> {len(dataset)}")

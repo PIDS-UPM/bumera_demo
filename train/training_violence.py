@@ -176,7 +176,7 @@ def save_model(dir, model, train_summary):
     acc = train_summary["accuracy"][-1]
     val_acc = train_summary["val_accuracy"][-1]
     filename = f"{now.day:02}{now.hour}{now.minute}_{int(acc*100)}_{int(val_acc*100)}"
-    model.save(f"trained_models/{dir}/{filename}.hdf5")
+    model.save(f"trained_models/{dir}/{filename}")
 
 
 def save_results(model, train_summary, time):
