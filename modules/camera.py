@@ -2,6 +2,7 @@ import socket
 import cv2 as cv
 from datetime import datetime
 
+
 class Camera:
     def __init__(self, id: int, frame_width: int, frame_height: int, use: str):
         self.__id = id  # ID's camera

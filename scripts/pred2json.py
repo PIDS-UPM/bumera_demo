@@ -3,11 +3,6 @@ import json
 import cv2 as cv
 from datetime import datetime
 
-"""
-Violence: 20, 57, 520, 740, 747, 836, 845, 860, 944, 957
-NonViolence: 
-"""
-
 for i in range(101, 1001):
     ini = datetime.now()
     violence = True
