@@ -3,4 +3,5 @@
 train_videos/
 poses/*
 models/
+trained_models/
 key.json
