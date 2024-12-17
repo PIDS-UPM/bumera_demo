@@ -1,3 +1,21 @@
+# -----------------------------------------------------------------------------
+# Author: Yago Boleas, Alberto Sánchez, Guillermo Pérez, Ana Mª Torres
+# Project: Bumera
+# Date: 17/12/2024
+# Description: Python script for processing video files to extract human pose 
+#              predictions using the MoveNet model. Each video frame is analyzed, 
+#              and the pose data (keypoints and predictions) are stored in a 
+#              JSON file. The script allows visualization of the original video 
+#              and the pose predictions using OpenCV, and it supports both 
+#              violent and non-violent video categories.
+#
+# License: This code is released under the MIT License.
+#          You are free to use, modify, and distribute this software, provided
+#          that proper credit is given to the original authors.
+#
+# Note: For more details, please refer to the LICENSE file included in the repository.
+# -----------------------------------------------------------------------------
+
 from modules.models import MoveNet
 import json
 import cv2 as cv

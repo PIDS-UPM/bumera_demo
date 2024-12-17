@@ -1,3 +1,22 @@
+# -----------------------------------------------------------------------------
+# Author: Yago Boleas, Alberto Sánchez, Guillermo Pérez, Ana Mª Torres
+# Project: Bumera
+# Date: 17/12/2024
+# Description: Python script for training a neural network model to classify 
+#              violent and non-violent videos based on human pose data. The 
+#              script preprocesses the pose data, generates corresponding images, 
+#              and uses transfer learning with various pre-trained models (VGG16, 
+#              VGG19, EfficientNetV2, InceptionResNetV2, and ConvNeXt) for 
+#              classification. It includes functions for dataset generation, 
+#              model training, and saving the trained models and results.
+#
+# License: This code is released under the MIT License.
+#          You are free to use, modify, and distribute this software, provided
+#          that proper credit is given to the original authors.
+#
+# Note: For more details, please refer to the LICENSE file included in the repository.
+# -----------------------------------------------------------------------------
+
 import os
 import json
 import datetime
@@ -59,7 +78,13 @@ CONNECTIONS = [
 BASE_DIR = "poses"
 
 
-def gen_image(frame):
+def gen_image(frame: dict) -> Image.Image:
+    """
+    Generates an image with keypoints and connections drawn based on the frame data.
+
+    :param frame: dict : A dictionary containing keypoints for each pose.
+    :return: Image.Image : The generated image with keypoints and connections drawn.
+    """
     img = Image.fromarray(np.zeros((224, 224, 3), dtype=np.uint8))
     draw = ImageDraw.Draw(img)
 
@@ -95,8 +120,14 @@ def gen_image(frame):
                 )
     return img
 
+def set_model(name: str, module) -> tf.keras.Model:
+    """
+    Sets the model by loading it from a file or creating a new one if it doesn't exist.
 
-def set_model(name, module):
+    :param name: str : The name of the model.
+    :param module: The module containing the model architectures.
+    :return: tf.keras.Model : The loaded or created model.
+    """
     model_path = f"trained_models/{name}"
     if os.path.exists(model_path):
         files = os.listdir(model_path)
@@ -107,8 +138,14 @@ def set_model(name, module):
         model = create_model(name, module)
     return model
 
+def create_model(name: str, module) -> tf.keras.Model:
+    """
+    Creates a new model based on the specified name and module.
 
-def create_model(name, module):
+    :param name: str : The name of the model.
+    :param module: The module containing the model architectures.
+    :return: tf.keras.Model : The created model.
+    """
     match name:
         case "vgg16":
             base_model = module.VGG16(
@@ -141,7 +178,16 @@ def create_model(name, module):
     return model
 
 
-def generate_dataset(files, labels, dir1, dir2):
+def generate_dataset(files: list, labels: list, dir1: str, dir2: str):
+    """
+    Generates a dataset from video files.
+
+    :param files: list : List of video files.
+    :param labels: list : List of labels corresponding to the video files.
+    :param dir1: str : Directory for one class of videos.
+    :param dir2: str : Directory for the other class of videos.
+    :yield: tuple : A tuple containing the preprocessed image and its label.
+    """
     for i, video in enumerate(files):
         path = os.path.join(dir1 if labels[i] else dir2, video)
         with open(path, "rt") as file:
@@ -154,8 +200,16 @@ def generate_dataset(files, labels, dir1, dir2):
                 img = gen_image(frame)
                 yield module.preprocess_input(np.array(img)), labels[i]
 
+def set_dataset(module, data: list, labels: list, train_ds: bool = False) -> tf.data.Dataset:
+    """
+    Sets up the dataset for training or validation.
 
-def set_dataset(module, data, labels, train_ds=False):
+    :param module: The module containing the preprocessing function.
+    :param data: list : List of data files.
+    :param labels: list : List of labels corresponding to the data files.
+    :param train_ds: bool : Flag indicating if the dataset is for training.
+    :return: tf.data.Dataset : The configured dataset.
+    """
     dataset = (
         tf.data.Dataset.from_generator(
             generate_dataset,
@@ -170,16 +224,28 @@ def set_dataset(module, data, labels, train_ds=False):
     )
     return dataset.shuffle(batch_size * 2).repeat() if train_ds else dataset
 
+def save_model(dir: str, model: tf.keras.Model, train_summary: dict):
+    """
+    Saves the trained model to a file.
 
-def save_model(dir, model, train_summary):
+    :param dir: str : The directory to save the model.
+    :param model: tf.keras.Model : The trained model to save.
+    :param train_summary: dict : The training summary containing accuracy metrics.
+    """
     now = datetime.datetime.now()
     acc = train_summary["accuracy"][-1]
     val_acc = train_summary["val_accuracy"][-1]
     filename = f"{now.day:02}{now.hour}{now.minute}_{int(acc*100)}_{int(val_acc*100)}"
     model.save(f"trained_models/{dir}/{filename}")
 
+def save_results(model: str, train_summary: dict, time: datetime.timedelta):
+    """
+    Saves the training results to a JSON file.
 
-def save_results(model, train_summary, time):
+    :param model: str : The name of the model.
+    :param train_summary: dict : The training summary containing metrics.
+    :param time: datetime.timedelta : The duration of the training.
+    """
     if os.path.exists("trained_models/results.json"):
         with open("trained_models/results.json", "rt") as file:
             results = json.load(file)

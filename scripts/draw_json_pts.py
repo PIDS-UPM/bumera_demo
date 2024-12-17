@@ -1,3 +1,20 @@
+# -----------------------------------------------------------------------------
+# Author: Yago Boleas, Alberto Sánchez, Guillermo Pérez, Ana Mª Torres
+# Project: Bumera
+# Date: 17/12/2024
+# Description: Python script for visualizing human poses from JSON files 
+#              containing keypoint data. Keypoints are drawn as circles, and 
+#              connections between keypoints are represented as lines to form 
+#              a skeletal pose. The visualization is displayed using OpenCV on 
+#              a blank image of predefined dimensions.
+#
+# License: This code is released under the MIT License.
+#          You are free to use, modify, and distribute this software, provided
+#          that proper credit is given to the original authors.
+#
+# Note: For more details, please refer to the LICENSE file included in the repository.
+# -----------------------------------------------------------------------------
+
 import json
 import cv2 as cv
 import numpy as np

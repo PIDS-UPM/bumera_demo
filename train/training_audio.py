@@ -1,3 +1,28 @@
+# -----------------------------------------------------------------------------
+# Author: Yago Boleas, Alberto Sánchez, Guillermo Pérez, Ana Mª Torres
+# Project: Bumera
+# Date: 17/12/2024
+# Description: This script processes audio files from the SAVEE dataset to 
+#              extract features for emotion recognition. It applies various 
+#              audio transformations (e.g., pitch shifting, time stretching, 
+#              noise addition) for data augmentation. The features extracted 
+#              include MFCCs, chroma features, pitch, spectral centroid, 
+#              zero-crossing rate, and root mean square energy. These features 
+#              are then used to train and evaluate different machine learning 
+#              models (Random Forest, Decision Tree, Gradient Boosting, 
+#              K-Nearest Neighbors, and Neural Networks) for emotion 
+#              classification. The best hyperparameters for each model are 
+#              determined through GridSearchCV, and performance metrics, 
+#              including confusion matrices and classification reports, are 
+#              generated.
+#
+# License: This code is released under the MIT License.
+#          You are free to use, modify, and distribute this software, provided
+#          that proper credit is given to the original authors.
+#
+# Note: For more details, please refer to the LICENSE file included in the repository.
+# -----------------------------------------------------------------------------
+
 import librosa
 import os
 import matplotlib.pyplot as plt
